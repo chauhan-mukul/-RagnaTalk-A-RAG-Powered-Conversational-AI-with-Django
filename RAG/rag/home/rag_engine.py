@@ -20,7 +20,7 @@ class RAGService:
     def __init__(self):
         self.model=SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         self.langchain_embedding = SentenceTransformerEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        self.key="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"
+        self.key=HUGGING_FACE_KEY
         
 
     def extract_text_from_pdf(self,pdf_file)->str:
@@ -125,3 +125,4 @@ class RAGService:
             return(answer)
         except Exception as e:
             return f"Failed to generate answer: {str(e)}"
+
