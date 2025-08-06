@@ -20,7 +20,7 @@ class summarzie:
     def __init__(self):
         self._embediing_model = SentenceTransformerEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         self.langchain_embedding = SentenceTransformerEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        self.key = "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"
+        self.key = HUGGING_FACE_KEY
 
         # Load once here
         self.model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
@@ -67,4 +67,5 @@ class summarzie:
                 answer = raw_text.strip()  # fallback: return whole text
         except Exception as e:
             return f"Failed to generate summary: {str(e)}"
+
 
