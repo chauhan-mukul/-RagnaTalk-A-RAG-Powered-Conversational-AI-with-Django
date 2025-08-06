@@ -30,8 +30,8 @@ It integrates document parsing, semantic search, and large language models to de
 - **Python**, **Django**
 - **LangChain**, **OpenAI / LLMs**
 - **FAISS** or **Chroma** for vector search
-- **PostgreSQL** or **SQLite** for database
-- **Celery + Redis** (optional, for async tasks)
+-  **SQLite** for database
+
 
 ---
 
