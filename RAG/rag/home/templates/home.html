@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PDF Q&A System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    h2, h3 {
+      color: #333;
+    }
+    form, .section {
+      background: #fff;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    input[type="file"], input[type="text"], select {
+      padding: 8px;
+      margin-top: 10px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .qa-item {
+      background: #f1f1f1;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    #answer-text, #extra-result {
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>📄 PDF Upload and Q&A</h2>
+
+  <!-- Select Existing Document -->
+  <div class="section">
+    <h3>📂 Select Existing Document</h3>
+    <select id="document-select">
+      <option value="">-- Choose a document --</option>
+    </select>
+    <button id="load-doc-btn">Load Document</button>
+  </div>
+
+  <!-- Upload Form -->
+  <form id="upload-form">
+    <h3>📤 Upload New PDF</h3>
+    <input type="file" id="pdf-file" accept="application/pdf" required />
+    <button type="submit">Upload</button>
+  </form>
+
+  <!-- Question Section -->
+  <div id="question-section" class="section" style="display:none;">
+    <h3>❓ Ask a Question</h3>
+    <form id="question-form">
+      <input type="text" id="question-input" placeholder="Type your question..." required />
+      <button type="submit">Ask</button>
+    </form>
+  </div>
+
+  <!-- Answer Section -->
+  <div id="answer-section" class="section" style="display:none;">
+    <h3>💬 Answer</h3>
+    <p id="answer-text">No answer yet.</p>
+  </div>
+
+  <!-- Q&A History -->
+  <div id="qa-history" class="section" style="display:none;">
+    <h3>📚 Previous Questions</h3>
+    <div id="qa-list"></div>
+  </div>
+
+  <!-- Extra Actions -->
+  <div id="extra-actions" class="section" style="display:none;">
+    <h3>🛠️ Extra Actions</h3>
+    <button id="summarize-btn">🔍 Summarize PDF</button>
+    <button id="metadata-btn">📌 Get Metadata</button>
+    <div id="extra-result"></div>
+  </div>
+
+  <script>
+    let documentId = null;
+
+    // Load existing documents
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const response = await fetch('/api/documents/');
+        const data = await response.json();
+        const select = document.getElementById('document-select');
+        data.documents.forEach(doc => {
+          const option = document.createElement('option');
+          option.value = doc.id;
+          option.textContent = doc.name || doc.filename || `Document ${doc.id}`;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error("❌ Failed to load documents:", err);
+      }
+    });
+
+    // Load existing document
+    document.getElementById('load-doc-btn').addEventListener('click', () => {
+      const selectedId = document.getElementById('document-select').value;
+      if (!selectedId) return alert("❗ Please select a document");
+
+      documentId = selectedId;
+      document.getElementById('question-section').style.display = 'block';
+      document.getElementById('answer-section').style.display = 'block';
+      document.getElementById('qa-history').style.display = 'block';
+      document.getElementById('extra-actions').style.display = 'block';
+      loadQAHistory();
+    });
+
+    // Upload new PDF
+    document.getElementById('upload-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const file = document.getElementById('pdf-file').files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/upload/', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        if (response.ok && data.document_id) {
+          documentId = data.document_id;
+          document.getElementById('question-section').style.display = 'block';
+          document.getElementById('answer-section').style.display = 'block';
+          document.getElementById('qa-history').style.display = 'block';
+          document.getElementById('extra-actions').style.display = 'block';
+          alert("✅ PDF uploaded and processed!");
+          loadQAHistory();
+        } else {
+          alert("❌ Upload failed: " + (data.error || "Unknown error"));
+        }
+
+      } catch (err) {
+        alert("❌ Upload failed: " + err.message);
+      }
+    });
+
+    // Ask question
+    document.getElementById('question-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const question = document.getElementById('question-input').value;
+
+      try {
+        const response = await fetch(`/api/documents/${documentId}/ask/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+        if (data.answer) {
+          document.getElementById('answer-text').textContent = data.answer;
+          loadQAHistory();
+        } else {
+          alert("❌ Failed to get answer: " + (data.error || "Unknown error"));
+        }
+      } catch (err) {
+        alert("❌ Error getting answer: " + err.message);
+      }
+    });
+
+    // Load Q&A history
+    async function loadQAHistory() {
+      try {
+        const response = await fetch(`/api/documents/${documentId}/questions/`);
+        const data = await response.json();
+        const qaList = document.getElementById('qa-list');
+        qaList.innerHTML = '';
+
+        data.questions.forEach(q => {
+          const div = document.createElement('div');
+          div.className = 'qa-item';
+          div.innerHTML = `<strong>Q:</strong> ${q.question_text}<br><strong>A:</strong> ${q.answer}`;
+          qaList.appendChild(div);
+        });
+      } catch (err) {
+        console.error("❌ Failed to load Q&A history:", err);
+      }
+    }
+
+    // Extra actions (GET endpoints)
+    document.getElementById('summarize-btn').addEventListener('click', async () => {
+  try {
+    const res = await fetch(`/api/documents/${documentId}/summarize/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})  // Add any payload here if needed
+    });
+
+    if (!res.ok) {
+      throw new Error(`Server responded with ${res.status}`);
+    }
+
+    const data = await res.json();
+    document.getElementById('extra-result').textContent =
+      data.summary || data.result || JSON.stringify(data);
+  } catch (err) {
+    alert("❌ Summarize failed: " + err.message);
+  }
+});
+
+  </script>
+</body>
+</html>
